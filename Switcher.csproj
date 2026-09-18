@@ -2,7 +2,7 @@
 
   <PropertyGroup>
     <OutputType>WinExe</OutputType>
-    <TargetFramework>net8.0-windows</TargetFramework>
+    <TargetFrameworks>net8.0-windows;net6.0-windows</TargetFrameworks>
     <Nullable>enable</Nullable>
     <UseWindowsForms>true</UseWindowsForms>
     <UseWPF>true</UseWPF> <!-- only for System.Windows.Automation (password fields) -->
@@ -11,7 +11,7 @@
     <ApplicationManifest>app.manifest</ApplicationManifest>
     <AssemblyName>Switcher</AssemblyName>
     <RootNamespace>Switcher</RootNamespace>
-    <Version>0.3.0</Version>
+    <Version>0.3.1</Version>
     <SatelliteResourceLanguages>en</SatelliteResourceLanguages>
     <InvariantGlobalization>false</InvariantGlobalization>
   </PropertyGroup>

@@ -1,6 +1,7 @@
 bin/
 obj/
 publish/
+dist/
 *.user
-Switcher-win-x64.zip
+Switcher-win*.zip
 LayoutFix-win-x64.zip

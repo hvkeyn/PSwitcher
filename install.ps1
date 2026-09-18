@@ -10,7 +10,7 @@ if (-not (Test-Path $dotnet)) { throw "Не найден .NET SDK: winget instal
 Write-Host "Сборка..." -ForegroundColor Cyan
 # инкрементальный publish не докладывает файлы в частично пустую папку — чистим
 Remove-Item "$PSScriptRoot\publish" -Recurse -Force -ErrorAction SilentlyContinue
-$publishArgs = @('publish', "$PSScriptRoot\Switcher.csproj", '-c', 'Release', '-r', 'win-x64', '--self-contained', 'true',
+$publishArgs = @('publish', "$PSScriptRoot\Switcher.csproj", '-c', 'Release', '-f', 'net8.0-windows', '-r', 'win-x64', '--self-contained', 'true',
                  '-p:PublishSingleFile=true', '-p:EnableCompressionInSingleFile=true', '-p:DebugType=none', '-o', "$PSScriptRoot\publish")
 & $dotnet @publishArgs | Out-Null
 if ($LASTEXITCODE -ne 0) { throw "Сборка не удалась" }

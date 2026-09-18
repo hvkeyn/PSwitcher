@@ -56,16 +56,25 @@ Switcher предложит (уведомлением в трее) добави�
 
 ## Скачать и запустить
 
-1. Скачай `Switcher-win-x64.zip` со страницы **[Releases](https://github.com/Alex100687/Switcher/releases/latest)**.
-2. Распакуй в любую папку (например, `C:\Program Files\Switcher` или `%LocalAppData%\Programs\Switcher`).
-3. Запусти `Switcher.exe` — появится иконка «Яa» в трее. Ничего устанавливать не нужно: .NET внутри.
-4. В меню иконки включи **«Запускать при входе в Windows»**.
+Скачай zip со страницы **[Releases](https://github.com/hvkeyn/PSwitcher/releases/latest)**:
+
+| Файл | Для кого |
+|---|---|
+| `Switcher-win10-x64.zip` | Windows 10 / 11 (64-bit) — основная сборка |
+| `Switcher-win7-x64.zip` | Windows 7 SP1 / 8.1 (64-bit) |
+| `Switcher-win7-x86.zip` | Windows 7 SP1 / 8.1 (32-bit) |
+
+Linux-сборки нет и не будет из этих исходников: хук клавиатуры, смена раскладки и вставка текста завязаны на Win32 (`WH_KEYBOARD_LL`, `SendInput`, `WM_INPUTLANGCHANGEREQUEST`). Отдельный Linux-бэкенд (X11/Wayland) — это другой порт, не «ещё один zip».
+
+1. Распакуй в любую папку (например, `C:\Program Files\Switcher` или `%LocalAppData%\Programs\Switcher`).
+2. Запусти `Switcher.exe` — появится иконка «Яa» в трее. Ничего устанавливать не нужно: .NET внутри.
+3. В меню иконки включи **«Запускать при входе в Windows»**.
 
 Windows SmartScreen при первом запуске может спросить «Неопознанное приложение» — exe не подписан
 сертификатом. «Подробнее» → «Выполнить в любом случае». Антивирусы иногда косятся на программы с глобальным
 хуком клавиатуры — это ожидаемо для любого переключателя раскладки, исходники открыты.
 
-Требуются установленные русская и английская раскладки клавиатуры (Windows 10/11, x64).
+Нужны установленные русская и английская раскладки клавиатуры. Сборка для Windows 7 — SP1.
 
 ## Сборка из исходников
 
@@ -73,8 +82,9 @@ Windows SmartScreen при первом запуске может спросит
 powershell -ExecutionPolicy Bypass -File install.ps1
 ```
 
-Нужен .NET 8 SDK (`winget install Microsoft.DotNet.SDK.8`). Скрипт собирает self-contained exe,
+Нужен .NET 8 SDK (`winget install Microsoft.DotNet.SDK.8`). Скрипт собирает self-contained exe (Windows 10/11),
 кладёт его в `%LocalAppData%\Programs\Switcher`, включает автозапуск и запускает.
+Релизные zip для Win10 и Win7: `powershell -ExecutionPolicy Bypass -File release.ps1` → папка `dist\`.
 Удаление — `uninstall.ps1` (`-Purge` — вместе с настройками).
 
 ## Файлы
