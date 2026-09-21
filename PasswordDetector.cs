@@ -1,8 +1,11 @@
 using System.Runtime.InteropServices;
+#if WINDOWS
 using System.Windows.Automation;
+#endif
 
 namespace Switcher;
 
+#if WINDOWS
 /// <summary>
 /// Is the keyboard focus in a password box? Classic Win32 edits carry ES_PASSWORD (instant); browsers, Electron and
 /// UWP expose IsPassword through UI Automation, which can stall on a busy app. So UIA runs on its own STA thread,
@@ -145,3 +148,12 @@ public sealed class PasswordDetector
         }
     }
 }
+#else
+/// <summary>Linux: no AT-SPI password probe yet — never rewrite is safer only if we skip; v1 types everywhere except excluded processes.</summary>
+public sealed class PasswordDetector
+{
+    public void Touch(IntPtr foreground) { }
+    public bool IsPasswordField(IntPtr foreground) => false;
+}
+#endif
+

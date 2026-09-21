@@ -1,5 +1,7 @@
 using System.Diagnostics;
+#if WINDOWS
 using System.Windows.Forms;
+#endif
 
 namespace Switcher;
 
@@ -24,6 +26,7 @@ public sealed class Engine : IDisposable
 
     private void RunInHook(Action a)
     {
+        if (!Native.CanSwallowInput) { SafeRun(a); return; } // X11 cannot inject inside a blocking hook
         _deferred.Enqueue(a);
         var sinceKey = TimeSpan.FromTicks(DateTime.UtcNow.Ticks - Volatile.Read(ref _lastHardwareKeyTicks));
         if (sinceKey > IdleGap) { Injector.SendTrigger(); return; }
@@ -236,6 +239,17 @@ public sealed class Engine : IDisposable
         Remember(flipped, newLayout, typed, oldLayout, 0, hwnd, wasAuto: true);
         ThreadPool.QueueUserWorkItem(_ => SafeRun(() => Report($"{typed} → {flipped}  [manual layout switch]")));
 
+        if (!Native.CanSwallowInput)
+        {
+            // original key still goes to the app — don't replay it
+            if (WordTracker.IsWordKey(vk)) _word.Push(vk, scan, newLayout, hwnd);
+            else if (vk is Native.VK_SPACE or Native.VK_RETURN or Native.VK_TAB)
+                OnWordBoundary((int)vk, hwnd);
+            else if (vk == Native.VK_BACK) _word.Backspace();
+            else Invalidate();
+            return false;
+        }
+
         // now the key that revealed the switch
         if (WordTracker.IsWordKey(vk))
         {
@@ -287,22 +301,30 @@ public sealed class Engine : IDisposable
 
             case ActionKind.SwitchLayout:
                 if (_passwords.IsPasswordField(hwnd)) return false; // never rewrite a password
-                // Synchronously, right here in the hook: our replacement keystrokes must be queued before
-                // whatever the user types next, otherwise a fast typist gets the two words interleaved.
                 SwitchLayoutVerified(hwnd, other);
                 var sws = System.Diagnostics.Stopwatch.StartNew();
-                Injector.Replace(typed.Length, alt, boundaryVk);
-                Log.Write($"  sync Replace took {sws.ElapsedMilliseconds} ms inCallback={KeyboardHook.InCallback}");
+                if (Native.CanSwallowInput)
+                {
+                    Injector.Replace(typed.Length, alt, boundaryVk);
+                    Log.Write($"  sync Replace took {sws.ElapsedMilliseconds} ms inCallback={KeyboardHook.InCallback}");
+                    SetContext(hwnd, altLang);
+                    Remember(alt, other, typed, layout, boundaryVk, hwnd, wasAuto: true);
+                    ThreadPool.QueueUserWorkItem(_ => SafeRun(() => Report($"{typed} → {alt}  [{decision.Reason}]")));
+                    return true;
+                }
+                // Linux: the boundary key already reached the app — erase word+boundary and type the correction.
+                Injector.Replace(typed.Length + 1, alt + BoundaryChar(boundaryVk));
+                Log.Write($"  async Replace took {sws.ElapsedMilliseconds} ms (no swallow)");
                 SetContext(hwnd, altLang);
                 Remember(alt, other, typed, layout, boundaryVk, hwnd, wasAuto: true);
                 ThreadPool.QueueUserWorkItem(_ => SafeRun(() => Report($"{typed} → {alt}  [{decision.Reason}]")));
-                return true;
+                return false;
 
             case ActionKind.FixSpelling:
                 if (_passwords.IsPasswordField(hwnd)) return false;
                 // Suggest takes ~100 ms, so this runs on a worker. A space goes through to the app right away
                 // (no typing lag); Enter/Tab are held back, because in a chat Enter would send the unfixed word.
-                bool hold = boundaryVk != Native.VK_SPACE;
+                bool hold = Native.CanSwallowInput && boundaryVk != Native.VK_SPACE;
                 string boundary = boundaryVk switch { Native.VK_RETURN => "\n", Native.VK_TAB => "\t", _ => " " };
                 var focus = Injector.FocusWindow(hwnd);
                 SubmitFix(new FixRequest(typed, layout, alt, other, hwnd, focus, boundaryVk, hold, boundary, epoch, ctx, RuleScope.Current));
@@ -515,9 +537,20 @@ public sealed class Engine : IDisposable
     private void Report(string message)
     {
         if (_settings.LogActions) Log.Write(message);
+#if WINDOWS
         if (_settings.Beep) System.Media.SystemSounds.Asterisk.Play();
+#else
+        if (_settings.Beep) { try { Console.Beep(); } catch { } }
+#endif
         Notify?.Invoke(message);
     }
+
+    private static string BoundaryChar(int vk) => vk switch
+    {
+        Native.VK_RETURN => "\n",
+        Native.VK_TAB => "\t",
+        _ => " ",
+    };
 
     private static void SafeRun(Action a)
     {
@@ -559,7 +592,10 @@ public sealed class Hotkey
                 case "alt": alt = true; break;
                 case "win": win = true; break;
                 default:
-                    if (Enum.TryParse<Keys>(raw, ignoreCase: true, out var k)) vk = (uint)k;
+                    if (VkNames.TryParse(raw, out var parsed)) vk = parsed;
+#if WINDOWS
+                    else if (Enum.TryParse<Keys>(raw, ignoreCase: true, out var k)) vk = (uint)k;
+#endif
                     else Log.Write($"Unknown hotkey part '{raw}', using Pause");
                     break;
             }

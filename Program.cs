@@ -1,5 +1,6 @@
-using System.Runtime.InteropServices;
+#if WINDOWS
 using System.Windows.Forms;
+#endif
 
 namespace Switcher;
 
@@ -10,18 +11,20 @@ internal static class Program
     {
         if (args.Length > 0 && args[0] == "--test")
             return SelfTest.Run(args.Skip(1).ToArray());
+#if WINDOWS
         if (args.Length > 1 && args[0] == "--ui-smoke")
             return SelfTest.UiSmoke(args[1]);
+#endif
 
-        // "--wait-for <pid>": started by Restart — let the previous instance release the mutex first
         int w = Array.IndexOf(args, "--wait-for");
         if (w >= 0 && w + 1 < args.Length && int.TryParse(args[w + 1], out int pid))
         {
             try { using var prev = System.Diagnostics.Process.GetProcessById(pid); prev.WaitForExit(5000); } catch { }
         }
 
+#if WINDOWS
         using var mutex = new Mutex(true, @"Local\Switcher_SingleInstance", out bool created);
-        if (!created) return 0; // already running
+        if (!created) return 0;
         Settings.MigrateFromLayoutFix();
 
         Application.EnableVisualStyles();
@@ -33,17 +36,19 @@ internal static class Program
 
         Application.Run(new TrayApp());
         return 0;
+#else
+        return LinuxHost.Run(args);
+#endif
     }
 }
 
 /// <summary>
-/// `Switcher.exe --test ghbdtn hello ntrcn` — simulate typing each word (in the layout its first letter belongs to)
-/// and print what the engine would do. Output goes to the parent console.
+/// `Switcher --test ghbdtn hello ntrcn` — simulate typing each word (in the layout its first letter belongs to)
+/// and print what the engine would do.
 /// </summary>
 internal static class SelfTest
 {
-    [DllImport("user32.dll", CharSet = CharSet.Unicode)] private static extern short VkKeyScanExW(char ch, IntPtr dwhkl);
-
+#if WINDOWS
     /// <summary>Open every tab of the settings window off-screen and save screenshots — a layout check without a human.</summary>
     public static int UiSmoke(string pngPrefix)
     {
@@ -52,7 +57,7 @@ internal static class SelfTest
         var settings = Settings.Load();
         var rules = new Rules();
         var dicts = new Dictionaries(); var freq = new Frequencies();
-        var engine = new Engine(settings, rules, dicts, freq, new SpellFixer(dicts, freq, rules)); // hook is not installed without Start()
+        var engine = new Engine(settings, rules, dicts, freq, new SpellFixer(dicts, freq, rules));
         for (int tab = 0; tab < 3; tab++)
         {
             using var f = new SettingsForm(settings, rules, engine, () => { }, tab) { StartPosition = FormStartPosition.Manual, Location = new System.Drawing.Point(-4000, -4000) };
@@ -65,6 +70,7 @@ internal static class SelfTest
         }
         return 0;
     }
+#endif
 
     public static int Run(string[] words)
     {
@@ -110,7 +116,7 @@ internal static class SelfTest
             bool ok = true;
             foreach (var ch in w)
             {
-                short r = VkKeyScanExW(ch, typedHkl);
+                short r = Native.VkKeyScanExW(ch, typedHkl);
                 if (r == -1) { ok = false; break; }
                 uint vk = (uint)(r & 0xFF);
                 bool shift = (r & 0x100) != 0;

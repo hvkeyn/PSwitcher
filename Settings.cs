@@ -68,6 +68,7 @@ public sealed class Settings
     {
         "Code", "devenv", "rider64", "idea64", "sublime_text", "notepad++",
         "WindowsTerminal", "cmd", "powershell", "pwsh", "conhost", "mintty", "alacritty", "wezterm-gui",
+        "gnome-terminal", "gnome-terminal-server", "konsole", "xfce4-terminal", "kitty", "foot", "xterm", "terminator", "tilix",
         "Unity", "UnityHub", "blender",
         "mstsc", "vmware", "VirtualBoxVM",
     };

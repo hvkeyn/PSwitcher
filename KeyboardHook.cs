@@ -4,6 +4,7 @@ namespace Switcher;
 
 public readonly record struct KeyEventArgs(uint Vk, uint Scan, bool Injected, bool Extended);
 
+#if WINDOWS
 /// <summary>
 /// Low-level keyboard + mouse hooks. Must be created on a thread with a message loop (the UI thread).
 /// </summary>
@@ -124,3 +125,5 @@ public sealed class KeyboardHook : IDisposable
         if (_mouseHook != IntPtr.Zero) { Native.UnhookWindowsHookEx(_mouseHook); _mouseHook = IntPtr.Zero; }
     }
 }
+#endif
+

@@ -4,7 +4,8 @@
 Он описывает **что** делает программа, **почему** каждое решение принято именно так, все пороги и константы,
 а также грабли, на которые уже наступали. Если меняешь поведение — обнови этот файл.
 
-Актуально для версии **0.3.0** (2026-09-18). Репозиторий: https://github.com/Alex100687/Switcher
+Актуально для версии **0.4.0**. Репозиторий форка: https://github.com/hvkeyn/PSwitcher
+(апстрим: https://github.com/Alex100687/Switcher)
 
 ---
 
@@ -395,10 +396,10 @@ score, берётся лучший.
   publish не докладывает файлы), `robocopy /MIR` в `%LocalAppData%\Programs\Switcher` (не `Copy-Item *` — теряет
   вложенные файлы в PS 5.1), автозапуск, запуск. Убирает старую установку LayoutFix.
 - PowerShell-скрипты с кириллицей — **UTF-8 с BOM и CRLF**, иначе PS 5.1 ломается на «умных кавычках».
-- Релиз: поднять `<Version>` в `Switcher.csproj`, закоммитить, тег `vX.Y.Z`, `Compress-Archive publish\* →
-  Switcher-win-x64.zip` (в `.gitignore`!), создать релиз и загрузить ассет через GitHub API. Токен — из Git
-  Credential Manager (`git credential fill`), `gh` не установлен и не нужен. JSON для API писать в файл с
-  `ensure_ascii` — кириллица в `-d` ломала парсер.
+- `release.ps1` — zip: Win10 (`net8.0-windows` win-x64), Win7 (`net6.0-windows` x64/x86), Linux (`net8.0` linux-x64).
+- Linux: TFM `net8.0`, бэкенд X11 (XRecord + XTest + XkbLockGroup) в `*.Linux.cs`. Хуки не глотают клавиши;
+  исправление всегда после пробела. Нативный Wayland без XWayland не работает. Трей WinForms нет — демон + `--autostart`.
+- Релиз: поднять `<Version>` в `Switcher.csproj`, закоммитить, тег `vX.Y.Z`, zip из `dist\`, `gh release create`.
 - Почта коммитов — `alekseibakakin@gmail.com` (личный GitHub), не рабочая.
 
 ---

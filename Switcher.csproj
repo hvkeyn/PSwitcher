@@ -1,23 +1,38 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <OutputType>WinExe</OutputType>
-    <TargetFrameworks>net8.0-windows;net6.0-windows</TargetFrameworks>
+    <TargetFrameworks>net8.0-windows;net6.0-windows;net8.0</TargetFrameworks>
     <Nullable>enable</Nullable>
-    <UseWindowsForms>true</UseWindowsForms>
-    <UseWPF>true</UseWPF> <!-- only for System.Windows.Automation (password fields) -->
     <ImplicitUsings>enable</ImplicitUsings>
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
-    <ApplicationManifest>app.manifest</ApplicationManifest>
     <AssemblyName>Switcher</AssemblyName>
     <RootNamespace>Switcher</RootNamespace>
-    <Version>0.3.1</Version>
+    <Version>0.4.0</Version>
     <SatelliteResourceLanguages>en</SatelliteResourceLanguages>
     <InvariantGlobalization>false</InvariantGlobalization>
   </PropertyGroup>
 
-  <ItemGroup>
-    <Using Include="System.IO" /> <!-- UseWPF drops it from the implicit usings -->
+  <PropertyGroup Condition="$(TargetFramework.Contains('-windows'))">
+    <OutputType>WinExe</OutputType>
+    <UseWindowsForms>true</UseWindowsForms>
+    <UseWPF>true</UseWPF>
+    <ApplicationManifest>app.manifest</ApplicationManifest>
+  </PropertyGroup>
+
+  <PropertyGroup Condition="'$(TargetFramework)' == 'net8.0'">
+    <OutputType>Exe</OutputType>
+    <UseWindowsForms>false</UseWindowsForms>
+    <UseWPF>false</UseWPF>
+    <EnableWindowsTargeting>true</EnableWindowsTargeting>
+  </PropertyGroup>
+
+  <ItemGroup Condition="$(TargetFramework.Contains('-windows'))">
+    <Using Include="System.IO" />
+  </ItemGroup>
+
+  <ItemGroup Condition="'$(TargetFramework)' == 'net8.0'">
+    <Compile Remove="TrayApp.cs" />
+    <Compile Remove="SettingsForm.cs" />
   </ItemGroup>
 
   <ItemGroup>

@@ -2,6 +2,7 @@ using System.Runtime.InteropServices;
 
 namespace Switcher;
 
+#if WINDOWS
 /// <summary>Sends synthetic keystrokes and layout-change requests to the foreground window.</summary>
 public static class Injector
 {
@@ -196,3 +197,5 @@ public static class Injector
 
     private static List<T> Also<T>(this List<T> list, Action<List<T>> f) { f(list); return list; }
 }
+#endif
+

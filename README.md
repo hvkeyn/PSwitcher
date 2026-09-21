@@ -63,12 +63,24 @@ Switcher предложит (уведомлением в трее) добави�
 | `Switcher-win10-x64.zip` | Windows 10 / 11 (64-bit) — основная сборка |
 | `Switcher-win7-x64.zip` | Windows 7 SP1 / 8.1 (64-bit) |
 | `Switcher-win7-x86.zip` | Windows 7 SP1 / 8.1 (32-bit) |
-
-Linux-сборки нет и не будет из этих исходников: хук клавиатуры, смена раскладки и вставка текста завязаны на Win32 (`WH_KEYBOARD_LL`, `SendInput`, `WM_INPUTLANGCHANGEREQUEST`). Отдельный Linux-бэкенд (X11/Wayland) — это другой порт, не «ещё один zip».
+| `Switcher-linux-x64.zip` | Linux x64, **X11 или XWayland** |
 
 1. Распакуй в любую папку (например, `C:\Program Files\Switcher` или `%LocalAppData%\Programs\Switcher`).
 2. Запусти `Switcher.exe` — появится иконка «Яa» в трее. Ничего устанавливать не нужно: .NET внутри.
 3. В меню иконки включи **«Запускать при входе в Windows»**.
+
+### Linux
+
+Нужны пакеты `libx11-6` и `libxtst6`, русская и английская раскладки (`setxkbmap us,ru`). Распаковать и:
+
+```bash
+chmod +x Switcher
+./Switcher                 # демон, Ctrl+C — выход
+./Switcher --autostart     # ~/.config/autostart/switcher.desktop
+./Switcher --test ghbdtn   # проверка движка без хука
+```
+
+Настройки: `~/.config/Switcher/`. Глобальный хук — расширение X RECORD; **нативные Wayland-клиенты (без XWayland) не видны**. Pause перехватывается через `XGrabKey`. Клавишу проглотить нельзя (в отличие от Windows), поэтому исправление всегда «стереть и напечатать заново» после пробела.
 
 Windows SmartScreen при первом запуске может спросить «Неопознанное приложение» — exe не подписан
 сертификатом. «Подробнее» → «Выполнить в любом случае». Антивирусы иногда косятся на программы с глобальным
@@ -84,7 +96,7 @@ powershell -ExecutionPolicy Bypass -File install.ps1
 
 Нужен .NET 8 SDK (`winget install Microsoft.DotNet.SDK.8`). Скрипт собирает self-contained exe (Windows 10/11),
 кладёт его в `%LocalAppData%\Programs\Switcher`, включает автозапуск и запускает.
-Релизные zip для Win10 и Win7: `powershell -ExecutionPolicy Bypass -File release.ps1` → папка `dist\`.
+Релизные zip для Win10, Win7 и Linux: `powershell -ExecutionPolicy Bypass -File release.ps1` → папка `dist\`.
 Удаление — `uninstall.ps1` (`-Purge` — вместе с настройками).
 
 ## Файлы

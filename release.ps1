@@ -2,6 +2,7 @@
 #   Switcher-win10-x64.zip  — .NET 8, Windows 10/11 x64
 #   Switcher-win7-x64.zip   — .NET 6, Windows 7 SP1 / 8.1 x64
 #   Switcher-win7-x86.zip   — .NET 6, Windows 7 SP1 / 8.1 x86
+#   Switcher-linux-x64.zip  — .NET 8, Linux x64 (X11 / XWayland)
 # Usage: powershell -ExecutionPolicy Bypass -File release.ps1
 $ErrorActionPreference = 'Stop'
 $root = $PSScriptRoot
@@ -16,7 +17,7 @@ if (-not (Test-Path $dotnet)) {
 }
 if (-not (Test-Path $dotnet)) { throw "NET SDK not found. Install .NET 8 SDK (it can also target net6)." }
 
-function Publish-Zip([string]$tfm, [string]$rid, [string]$zipName) {
+function Publish-Zip([string]$tfm, [string]$rid, [string]$zipName, [string]$exeName) {
     $out = Join-Path $root ("publish\" + [IO.Path]::GetFileNameWithoutExtension($zipName))
     Write-Host "Publishing $zipName  ($tfm / $rid)..." -ForegroundColor Cyan
     if (Test-Path $out) { Remove-Item $out -Recurse -Force }
@@ -30,8 +31,12 @@ function Publish-Zip([string]$tfm, [string]$rid, [string]$zipName) {
     )
     & $dotnet @args
     if ($LASTEXITCODE -ne 0) { throw "publish failed: $zipName" }
-    if (-not (Test-Path (Join-Path $out 'Switcher.exe'))) { throw "Switcher.exe missing in $out" }
+    $exe = Join-Path $out $exeName
+    if (-not (Test-Path $exe)) { throw "$exeName missing in $out" }
     if (-not (Test-Path (Join-Path $out 'dict\ru_RU.dic'))) { throw "dictionaries missing in $out" }
+    if ($rid -like 'linux-*') {
+        Copy-Item (Join-Path $root 'install.sh') (Join-Path $out 'install.sh') -Force
+    }
     $zip = Join-Path $dist $zipName
     if (Test-Path $zip) { Remove-Item $zip -Force }
     Compress-Archive -Path (Join-Path $out '*') -DestinationPath $zip -Force
@@ -43,9 +48,10 @@ if (Test-Path $dist) { Remove-Item $dist -Recurse -Force }
 New-Item -ItemType Directory -Force $dist | Out-Null
 Remove-Item (Join-Path $root 'publish') -Recurse -Force -ErrorAction SilentlyContinue
 
-Publish-Zip 'net8.0-windows' 'win-x64' 'Switcher-win10-x64.zip'
-Publish-Zip 'net6.0-windows' 'win-x64' 'Switcher-win7-x64.zip'
-Publish-Zip 'net6.0-windows' 'win-x86' 'Switcher-win7-x86.zip'
+Publish-Zip 'net8.0-windows' 'win-x64' 'Switcher-win10-x64.zip' 'Switcher.exe'
+Publish-Zip 'net6.0-windows' 'win-x64' 'Switcher-win7-x64.zip' 'Switcher.exe'
+Publish-Zip 'net6.0-windows' 'win-x86' 'Switcher-win7-x86.zip' 'Switcher.exe'
+Publish-Zip 'net8.0' 'linux-x64' 'Switcher-linux-x64.zip' 'Switcher'
 
 # alias expected by older docs / upstream
 Copy-Item (Join-Path $dist 'Switcher-win10-x64.zip') (Join-Path $dist 'Switcher-win-x64.zip') -Force
