@@ -3,15 +3,11 @@ using System.Drawing;
 using System.Drawing.Drawing2D;
 using System.Drawing.Text;
 using System.Windows.Forms;
-using Microsoft.Win32;
 
 namespace Switcher;
 
 public sealed class TrayApp : ApplicationContext
 {
-    private const string RunKey = @"Software\Microsoft\Windows\CurrentVersion\Run";
-    private const string RunName = "Switcher";
-
     private readonly Settings _settings;
     private readonly Rules _exceptions;
     private readonly Dictionaries _dicts = new();
@@ -66,6 +62,7 @@ public sealed class TrayApp : ApplicationContext
     public TrayApp()
     {
         _settings = Settings.Load();
+        OsAutostart.Apply(_settings.Autostart); // settings.json is the switch; refresh the Run key to this exe
         Log.Enabled = true;
         _exceptions = new Rules();
 
@@ -139,7 +136,12 @@ public sealed class TrayApp : ApplicationContext
         _miBeep = Add(menu, "Звук при исправлении", () => { _settings.Beep = !_settings.Beep; Save(); });
         _miLog = Add(menu, "Записывать замены в лог", () => { _settings.LogActions = !_settings.LogActions; Save(); });
         menu.Items.Add(new ToolStripSeparator());
-        _miAutostart = Add(menu, "Запускать при входе в Windows", () => { SetAutostart(!IsAutostart()); UpdateUi(); });
+        _miAutostart = Add(menu, "Запускать при входе в Windows", () =>
+        {
+            _settings.Autostart = !_settings.Autostart;
+            OsAutostart.Apply(_settings.Autostart);
+            Save();
+        });
         menu.Items.Add(new ToolStripSeparator());
         Add(menu, "Открыть настройки (settings.json)", () => Open(Settings.FilePath));
         Add(menu, "Открыть автозамены (autocorrect.txt)", () => { EnsureFile(Rules.AutocorrectPath, "# что_набрано = на_что_заменить" + Environment.NewLine); Open(Rules.AutocorrectPath); });
@@ -190,7 +192,7 @@ public sealed class TrayApp : ApplicationContext
         _miSpell.Checked = _settings.AutoFixSpelling;
         _miBeep.Checked = _settings.Beep;
         _miLog.Checked = _settings.LogActions;
-        _miAutostart.Checked = IsAutostart();
+        _miAutostart.Checked = _settings.Autostart;
     }
 
     private static string Version => typeof(TrayApp).Assembly.GetName().Version?.ToString(3) ?? "1.0";
@@ -207,22 +209,7 @@ public sealed class TrayApp : ApplicationContext
 
     // ------------------------------------------------------------------ autostart
 
-    public static string ExePath => Environment.ProcessPath ?? Application.ExecutablePath;
-
-    public static bool IsAutostart()
-    {
-        using var key = Registry.CurrentUser.OpenSubKey(RunKey, writable: false);
-        var v = key?.GetValue(RunName) as string;
-        return v != null && v.Trim('"').Equals(ExePath, StringComparison.OrdinalIgnoreCase);
-    }
-
-    public static void SetAutostart(bool enable)
-    {
-        using var key = Registry.CurrentUser.OpenSubKey(RunKey, writable: true) ?? Registry.CurrentUser.CreateSubKey(RunKey)!;
-        key.DeleteValue("LayoutFix", throwOnMissingValue: false); // the program's former name
-        if (enable) key.SetValue(RunName, $"\"{ExePath}\"");
-        else key.DeleteValue(RunName, throwOnMissingValue: false);
-    }
+    public static string ExePath => OsAutostart.ExePath;
 
     // ------------------------------------------------------------------ helpers
 

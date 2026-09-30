@@ -4,7 +4,7 @@
 Он описывает **что** делает программа, **почему** каждое решение принято именно так, все пороги и константы,
 а также грабли, на которые уже наступали. Если меняешь поведение — обнови этот файл.
 
-Актуально для версии **0.4.0**. Репозиторий форка: https://github.com/hvkeyn/PSwitcher
+Актуально для версии **0.5.0**. Репозиторий форка: https://github.com/hvkeyn/PSwitcher
 (апстрим: https://github.com/Alex100687/Switcher)
 
 ---
@@ -332,7 +332,8 @@ score, берётся лучший.
 
 | Ключ | По умолчанию | Смысл |
 |---|---|---|
-| `SettingsVersion` | 2 | Версия схемы; при повышении дефолтов старый файл мигрируется (`Load`). |
+| `SettingsVersion` | 3 | Версия схемы; при повышении дефолтов старый файл мигрируется (`Load`). |
+| `Autostart` | false (или как уже включено в системе) | Запуск при входе: Windows — `HKCU\...\Run\Switcher`, Linux — `~/.config/autostart/switcher.desktop`. Переключатель в окне «Настройки» и в меню трея. На Linux то же поле в `settings.json`, плюс `--autostart` / `--no-autostart`. При старте путь к exe переписывается на текущий. |
 | `Enabled` | true | Главный выключатель (двойной клик по иконке). |
 | `AutoSwitchLayout` | true | Автопереключение раскладки. |
 | `AutoFixSpelling` | true | Автоисправление. |
@@ -398,7 +399,8 @@ score, берётся лучший.
 - PowerShell-скрипты с кириллицей — **UTF-8 с BOM и CRLF**, иначе PS 5.1 ломается на «умных кавычках».
 - `release.ps1` — zip: Win10 (`net8.0-windows` win-x64), Win7 (`net6.0-windows` x64/x86), Linux (`net8.0` linux-x64).
 - Linux: TFM `net8.0`, бэкенд X11 (XRecord + XTest + XkbLockGroup) в `*.Linux.cs`. Хуки не глотают клавиши;
-  исправление всегда после пробела. Нативный Wayland без XWayland не работает. Трей WinForms нет — демон + `--autostart`.
+  исправление всегда после пробела. Нативный Wayland без XWayland не работает. Трей WinForms нет — демон.
+  `settings.json` перечитывается на лету (в том числе `Autostart` и горячая клавиша). `--autostart` пишет и файл, и json.
 - Релиз: поднять `<Version>` в `Switcher.csproj`, закоммитить, тег `vX.Y.Z`, zip из `dist\`, `gh release create`.
 - Почта коммитов — `alekseibakakin@gmail.com` (личный GitHub), не рабочая.
 

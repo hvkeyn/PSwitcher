@@ -61,7 +61,7 @@ public sealed class SettingsForm : Form
         Check(grid, "Автоисправление опечаток (жызнь → жизнь)", () => _settings.AutoFixSpelling, v => _settings.AutoFixSpelling = v);
         Check(grid, "Звук при замене", () => _settings.Beep, v => _settings.Beep = v);
         Check(grid, "Записывать заменённые слова в лог", () => _settings.LogActions, v => _settings.LogActions = v);
-        Check(grid, "Запускать при входе в Windows", TrayApp.IsAutostart, TrayApp.SetAutostart);
+        Check(grid, "Запускать при входе в Windows", () => _settings.Autostart, v => { _settings.Autostart = v; OsAutostart.Apply(v); });
         Check(grid, "Слать Alt+Shift, если приложение игнорирует смену раскладки", () => _settings.ToggleHotkeyIfIgnored, v => _settings.ToggleHotkeyIfIgnored = v);
 
         // hotkey capture

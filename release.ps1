@@ -56,6 +56,28 @@ Publish-Zip 'net8.0' 'linux-x64' 'Switcher-linux-x64.zip' 'Switcher'
 # alias expected by older docs / upstream
 Copy-Item (Join-Path $dist 'Switcher-win10-x64.zip') (Join-Path $dist 'Switcher-win-x64.zip') -Force
 
+# Portable Windows folder: unzip and run, with a short instruction file. Built from the Win10 publish output.
+$portableSrc = Join-Path $root 'publish\Switcher-win10-x64'
+$portable = Join-Path $root 'publish\Switcher-Windows'
+if (Test-Path $portable) { Remove-Item $portable -Recurse -Force }
+New-Item -ItemType Directory $portable | Out-Null
+Copy-Item (Join-Path $portableSrc '*') $portable -Recurse -Force
+$readme = @"
+Switcher 0.5.0
+
+1. Распакуй ВСЮ папку (Switcher.exe, dict и dll).
+2. Запусти Switcher.exe.
+3. Автозапуск: иконка в трее или Настройки — «Запускать при входе в Windows».
+   То же самое поле Autostart в %AppData%\Switcher\settings.json.
+
+.NET ставить не нужно. Нужны русская и английская раскладки.
+"@
+$enc = New-Object System.Text.UTF8Encoding $true
+[IO.File]::WriteAllText((Join-Path $portable 'README.txt'), ($readme -replace "(?<!`r)`n","`r`n"), $enc)
+$portableZip = Join-Path $dist 'Switcher-Windows.zip'
+if (Test-Path $portableZip) { Remove-Item $portableZip -Force }
+Compress-Archive -Path (Join-Path $portable '*') -DestinationPath $portableZip -Force
+
 Write-Host ""
 Write-Host "Done. Zips:" -ForegroundColor Green
 Get-ChildItem $dist -Filter '*.zip' | ForEach-Object {

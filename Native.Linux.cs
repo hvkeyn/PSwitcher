@@ -225,15 +225,21 @@ internal static partial class Native
         }
     }
 
-    public static void GrabHotkey(uint vk)
+    public static void GrabHotkey(Hotkey hk)
     {
-        uint code = KeyMap.XKeycode(vk);
+        uint code = KeyMap.XKeycode(hk.Vk);
         if (Display == IntPtr.Zero || code == 0) return;
+        uint mods = 0;
+        if (hk.Shift) mods |= X11.ShiftMask;
+        if (hk.Ctrl) mods |= X11.ControlMask;
+        if (hk.Alt) mods |= X11.Mod1Mask;
+        if (hk.Win) mods |= X11.Mod4Mask;
         lock (XLock)
         {
-            uint[] mods = { 0, X11.LockMask, X11.Mod2Mask, X11.LockMask | X11.Mod2Mask };
-            foreach (var m in mods)
-                X11.XGrabKey(Display, (int)code, m, _root, 1, X11.GrabModeAsync, X11.GrabModeAsync);
+            // also grab with CapsLock / NumLock so the key still works when those are on
+            uint[] extra = { 0, X11.LockMask, X11.Mod2Mask, X11.LockMask | X11.Mod2Mask };
+            foreach (var e in extra)
+                X11.XGrabKey(Display, (int)code, mods | e, _root, 1, X11.GrabModeAsync, X11.GrabModeAsync);
             X11.XFlush(Display);
         }
     }

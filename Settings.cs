@@ -28,7 +28,7 @@ public sealed class Settings
 
     /// <summary>Bumped when a default changes; old files get the affected fields migrated in <see cref="Load"/>.</summary>
     public int SettingsVersion { get; set; } // 0 = file written before versioning
-    public const int CurrentVersion = 2;
+    public const int CurrentVersion = 3;
 
     /// <summary>Master switch.</summary>
     public bool Enabled { get; set; } = true;
@@ -60,13 +60,17 @@ public sealed class Settings
     /// </summary>
     public bool LogActions { get; set; } = false;
 
+    /// <summary>Start with the user session: Windows Run key, or an XDG autostart desktop file on Linux.</summary>
+    public bool Autostart { get; set; } = false;
+
     /// <summary>Hotkey: convert last word / undo. Format "Ctrl+Shift+Key", e.g. "Pause", "Ctrl+Shift+Space".</summary>
     public string Hotkey { get; set; } = "Pause";
 
     /// <summary>Process names (without .exe) where the program does nothing.</summary>
     public List<string> ExcludedProcesses { get; set; } = new()
     {
-        "Code", "devenv", "rider64", "idea64", "sublime_text", "notepad++",
+        "Code", "Cursor", "code", "code-oss", "codium", "devenv", "rider64", "idea64", "sublime_text", "notepad++",
+        "kate", "gedit", "gnome-text-editor",
         "WindowsTerminal", "cmd", "powershell", "pwsh", "conhost", "mintty", "alacritty", "wezterm-gui",
         "gnome-terminal", "gnome-terminal-server", "konsole", "xfce4-terminal", "kitty", "foot", "xterm", "terminator", "tilix",
         "Unity", "UnityHub", "blender",
@@ -83,6 +87,14 @@ public sealed class Settings
                 if (s != null)
                 {
                     if (s.SettingsVersion < 2 && s.MinSpellFixLength == 4) s.MinSpellFixLength = 3; // v2: broader spell fixing
+                    if (s.SettingsVersion < 3)
+                    {
+                        s.Autostart = OsAutostart.HasEntry(); // keep an existing login entry, including a stale exe path
+                        s.ExcludedProcesses ??= new();
+                        foreach (var name in new[] { "Cursor", "code", "code-oss", "codium", "kate", "gedit", "gnome-text-editor" })
+                            if (!s.ExcludedProcesses.Any(x => string.Equals(x, name, StringComparison.OrdinalIgnoreCase)))
+                                s.ExcludedProcesses.Add(name);
+                    }
                     if (s.SettingsVersion != CurrentVersion) { s.SettingsVersion = CurrentVersion; s.Save(); }
                     return s;
                 }
@@ -101,9 +113,36 @@ public sealed class Settings
             catch { }
             return new Settings(); // in memory only; Save() would overwrite the user's file
         }
-        var def = new Settings();
+        var def = new Settings { Autostart = OsAutostart.HasEntry() };
         def.Save();
         return def;
+    }
+
+    /// <summary>Read settings.json without creating or migrating it. Used to pick up edits while the program is running.</summary>
+    public static Settings? TryRead()
+    {
+        try
+        {
+            if (!File.Exists(FilePath)) return null;
+            return JsonSerializer.Deserialize<Settings>(File.ReadAllText(FilePath), JsonOptions);
+        }
+        catch (Exception ex) { Log.Write("Settings reread failed: " + ex.Message); return null; }
+    }
+
+    /// <summary>Copy the knobs the engine reads live. Does not save and does not touch <see cref="SettingsVersion"/>.</summary>
+    public void CopyRuntimeFrom(Settings other)
+    {
+        Enabled = other.Enabled;
+        AutoSwitchLayout = other.AutoSwitchLayout;
+        AutoFixSpelling = other.AutoFixSpelling;
+        MinWordLength = other.MinWordLength;
+        MinSpellFixLength = other.MinSpellFixLength;
+        ToggleHotkeyIfIgnored = other.ToggleHotkeyIfIgnored;
+        Beep = other.Beep;
+        LogActions = other.LogActions;
+        Hotkey = other.Hotkey ?? "Pause";
+        Autostart = other.Autostart;
+        ExcludedProcesses = other.ExcludedProcesses ?? new List<string>();
     }
 
     public void Save()

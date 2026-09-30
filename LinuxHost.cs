@@ -7,13 +7,15 @@ namespace Switcher;
 internal static class LinuxHost
 {
     private const string MutexName = "Switcher_SingleInstance";
+    private static FileSystemWatcher? _settingsWatch;
+    private static int _reloadGen;
 
     public static int Run(string[] args)
     {
         if (args.Length > 0 && args[0] is "--autostart" or "--install-autostart")
-        { InstallAutostart(true); Console.WriteLine("autostart enabled: " + AutostartPath); return 0; }
+            return SetAutostartFlag(true);
         if (args.Length > 0 && args[0] is "--no-autostart" or "--uninstall-autostart")
-        { InstallAutostart(false); Console.WriteLine("autostart disabled"); return 0; }
+            return SetAutostartFlag(false);
 
         using var mutex = new Mutex(true, MutexName, out bool created);
         if (!created)
@@ -24,6 +26,7 @@ internal static class LinuxHost
 
         Settings.MigrateFromLayoutFix();
         var settings = Settings.Load();
+        OsAutostart.Apply(settings.Autostart);
         var rules = new Rules();
         var dicts = new Dictionaries();
         var freq = new Frequencies();
@@ -43,7 +46,8 @@ internal static class LinuxHost
             return 1;
         }
 
-        Native.GrabHotkey(Hotkey.Parse(settings.Hotkey).Vk);
+        engine.ReloadHotkey();
+        WatchSettings(settings, engine);
 
         try
         {
@@ -59,9 +63,10 @@ internal static class LinuxHost
             return 1;
         }
 
-        Console.WriteLine($"Switcher v{Version}  X11  Pause=переключить/отменить");
+        Console.WriteLine($"Switcher v{Version}  X11  hotkey={settings.Hotkey}  autostart={(settings.Autostart ? "on" : "off")}");
         Console.WriteLine("settings: " + Settings.FilePath);
-        Console.WriteLine("Ctrl+C to quit.  --autostart / --no-autostart");
+        Console.WriteLine("Правки settings.json подхватываются на лету. Ctrl+C — выход.");
+        Console.WriteLine("Автозапуск: \"Autostart\": true в settings.json, или --autostart / --no-autostart");
         Log.Write("Linux host ready");
 
         var done = new ManualResetEventSlim(false);
@@ -74,21 +79,51 @@ internal static class LinuxHost
         return 0;
     }
 
-    private static string Version => typeof(LinuxHost).Assembly.GetName().Version?.ToString(3) ?? "0.4.0";
-
-    private static string AutostartPath =>
-        Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "autostart", "switcher.desktop");
-
-    public static void InstallAutostart(bool enable)
+    private static int SetAutostartFlag(bool enable)
     {
-        var path = AutostartPath;
-        if (!enable) { if (File.Exists(path)) File.Delete(path); return; }
-        Directory.CreateDirectory(Path.GetDirectoryName(path)!);
-        var exe = Environment.ProcessPath ?? "Switcher";
-        File.WriteAllText(path,
-            "[Desktop Entry]\nType=Application\nName=Switcher\nComment=Layout switcher and typo fixer\n" +
-            $"Exec=\"{exe}\"\nIcon=input-keyboard\nTerminal=false\nX-GNOME-Autostart-enabled=true\n");
+        var s = Settings.Load();
+        s.Autostart = enable;
+        s.Save();
+        OsAutostart.Apply(enable);
+        Console.WriteLine(enable ? "autostart enabled: " + OsAutostart.DesktopPath : "autostart disabled");
+        return 0;
     }
+
+    /// <summary>Editor and the Windows settings window write the same json. On Linux there is no tray, so reread the file.</summary>
+    private static void WatchSettings(Settings live, Engine engine)
+    {
+        try
+        {
+            Directory.CreateDirectory(Settings.Dir);
+            _settingsWatch = new FileSystemWatcher(Settings.Dir, "settings.json")
+            {
+                NotifyFilter = NotifyFilters.FileName | NotifyFilters.LastWrite | NotifyFilters.Size,
+            };
+            void Kick(object? _, FileSystemEventArgs __)
+            {
+                int gen = Interlocked.Increment(ref _reloadGen);
+                Task.Delay(400).ContinueWith(_ =>
+                {
+                    if (gen != Volatile.Read(ref _reloadGen)) return;
+                    var fresh = Settings.TryRead();
+                    if (fresh == null) return;
+                    bool hotkey = !string.Equals(live.Hotkey, fresh.Hotkey, StringComparison.OrdinalIgnoreCase);
+                    bool auto = live.Autostart != fresh.Autostart;
+                    live.CopyRuntimeFrom(fresh);
+                    if (hotkey) engine.ReloadHotkey();
+                    if (auto) OsAutostart.Apply(live.Autostart);
+                    Log.Write("settings reloaded");
+                });
+            }
+            _settingsWatch.Changed += Kick;
+            _settingsWatch.Created += Kick;
+            _settingsWatch.Renamed += Kick;
+            _settingsWatch.EnableRaisingEvents = true;
+        }
+        catch (Exception ex) { Log.Write("settings watch failed: " + ex.Message); }
+    }
+
+    private static string Version => typeof(LinuxHost).Assembly.GetName().Version?.ToString(3) ?? "0.5.0";
 
     private static void Notify(string text)
     {

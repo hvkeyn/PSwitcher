@@ -38,8 +38,17 @@ public sealed class Engine : IDisposable
     private readonly KeyboardHook _hook;
     private readonly WordTracker _word = new();
     private Hotkey _hotkey;
-    /// <summary>Re-read the hotkey from settings (the settings window changed it).</summary>
-    public void ReloadHotkey() => _hotkey = Hotkey.Parse(_settings.Hotkey);
+    /// <summary>Re-read the hotkey from settings (the settings window or a settings.json edit changed it).</summary>
+    public void ReloadHotkey()
+    {
+#if !WINDOWS
+        Native.UngrabHotkey(_hotkey.Vk);
+#endif
+        _hotkey = Hotkey.Parse(_settings.Hotkey);
+#if !WINDOWS
+        if (Native.Display != IntPtr.Zero) Native.GrabHotkey(_hotkey);
+#endif
+    }
 
     /// <summary>Temporary pause from the tray menu / settings window; DateTime.MinValue = not paused.</summary>
     public DateTime PausedUntil { get; set; } = DateTime.MinValue;
